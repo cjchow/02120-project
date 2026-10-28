@@ -27,11 +27,11 @@ Also check special cases by hand, e.g. with no aerosols the temperature must sta
 - `project/data/`: the two source papers (PDFs). Teach me from these.
 - `project/folder1/`: course project description and my proposal (`proposal.csv`).
 - `project/folder2/main.py`: current draft of the model. `kpg_draft.png` is its output.
-- `journal/`: build journal (generated). Read it and redact before pushing.
+- `journal/`: build journal (generated). The hook redacts emails, IP addresses, and my Windows username automatically; still skim it before pushing.
 
 ## Rules for working with me
 - Use plan mode for anything bigger than a small fix.
 - Prove things work: every function gets a test, and you explain the test in plain English.
 - Every number or constant must cite a paper or say "assumed/tuned".
-- Never put passwords, API keys, or personal info in code, commits, or this file. This repo is public.
+- Never put passwords, API keys, or personal info in code, commits, or this file. This repo is private, but TAs and graders read it.
 - I make my own commits. Suggest a commit message, but don't commit or push unless I ask.
