@@ -28,8 +28,10 @@ DT_DAYS = 1.0
 def optical_depth(t_yr, tau_soot, t_soot, tau_sulf, t_sulf):
     """Total aerosol optical depth; each type decays exponentially."""
     return tau_soot * np.exp(-t_yr / t_soot) + tau_sulf * np.exp(-t_yr / t_sulf)
-
-
+    # shows how thick the haze is (tau)
+    # has nothing to do w how much light is passed through (yet). just calcualtes how thick the haze is
+    # does addition to get the total tau value (multiplying w exponents means adding the exponentials)
+    
 def productivity(trans, T):
     """Photosynthesis relative to normal (0..1), limited by light and cold.
     Light: none below 1% of normal sunlight, full above 50%.
