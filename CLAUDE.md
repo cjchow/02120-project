@@ -33,5 +33,5 @@ Also check special cases by hand, e.g. with no aerosols the temperature must sta
 - Use plan mode for anything bigger than a small fix.
 - Prove things work: every function gets a test, and you explain the test in plain English.
 - Every number or constant must cite a paper or say "assumed/tuned".
-- Never put passwords, API keys, or personal info in code, commits, or this file. This repo is private, but TAs and graders read it.
+- Never put passwords, API keys, or personal info in code, commits, or this file. This repo is public, so anyone can read it, including TAs and graders.
 - I make my own commits. Suggest a commit message, but don't commit or push unless I ask.
