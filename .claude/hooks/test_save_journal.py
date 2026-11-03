@@ -2,7 +2,7 @@
 
 import json
 
-from save_journal import redact, redact_line
+from save_journal import USERNAME, redact, redact_line, scrub, scrub_log
 
 
 def test_redact():
@@ -23,7 +23,20 @@ def test_redact_line_stays_valid_json():
     assert record == {"text": "such\n[email]\n[ip]: 0", "path": "C:\\Users\\[user]"}
 
 
+def test_scrub_log_redacts_secrets_and_personal_info():
+    # One raw log line with an API key, an email, and the real Windows username.
+    secret = "sk-" + "a" * 24
+    line = json.dumps({"text": f"key {secret} from a.b@uni.edu in C:\\Users\\{USERNAME}"}) + "\n"
+    out_lines = scrub_log(line + line).splitlines()
+    assert len(out_lines) == 2  # still one record per line
+    for out in out_lines:
+        assert json.loads(out) == {"text": "key [REDACTED] from [email] in C:\\Users\\[user]"}
+    # scrub() (used for the readable .md files) does the same on plain text.
+    assert scrub(f"{secret} a.b@uni.edu") == "[REDACTED] [email]"
+
+
 if __name__ == "__main__":
     test_redact()
     test_redact_line_stays_valid_json()
+    test_scrub_log_redacts_secrets_and_personal_info()
     print("all journal redaction tests: PASS")
