@@ -53,7 +53,7 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
     for i in range(n - 1):
         net = ABSORBED * trans[i] - EPS * SIGMA * Ts[i]**4
         exch = GAMMA * (Ts[i] - Td[i]) if deep else 0.0
-        Ts[i + 1] = Ts[i] + (net - exch) / C_S * dt * YEAR
+        Ts[i + 1] = Ts[i] + ((net - exch) * dt * YEAR) / C_S
         Td[i + 1] = Td[i] + exch / C_D * dt * YEAR
         prod[i] = productivity(trans[i], Ts[i])
         # Each level grows toward the level below it (logistic tracking).
