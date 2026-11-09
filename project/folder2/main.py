@@ -37,8 +37,12 @@ def productivity(trans, T):
     Light: none below 1% of normal sunlight, full above 50%.
     Temperature: none at 263 K (-10 C) or colder, full at T0."""
     light = np.clip((trans - 0.01) / (0.50 - 0.01), 0, 1)
+        # 0.01 is the minimum light let through (1% of normal). It comes from Bardeen et al. 2017 (photosynthesis stops at 1% of normal sunlight)
+        # 0.50 is the maximum brightness that allows the max cap of productivity. It is an assumed number, picked as a round number because real plankton do have maximum light saturation but the exact point varies greatly amongst different species. 
     warm = np.clip((T - 263.0) / (T0 - 263.0), 0, 1)
+        # 263.0 degrees K is the minimum temperature that allows photosynthesis (cold slows down enzymes). It is an assumed number, rooted loosly in seawater freezing temps and plankton photosynthesis. 
     return light * warm
+        # multiplying light * warmth is the common convention when modeling photosynthesis, as it roughly matches lab measurements
 
 
 def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
