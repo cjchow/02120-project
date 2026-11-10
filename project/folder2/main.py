@@ -37,12 +37,12 @@ def productivity(trans, T):
     Light: none below 1% of normal sunlight, full above 50%.
     Temperature: none at 263 K (-10 C) or colder, full at T0."""
     light = np.clip((trans - 0.01) / (0.50 - 0.01), 0, 1)
-        # 0.01 is the minimum light let through (1% of normal). It comes from Bardeen et al. 2017 (photosynthesis stops at 1% of normal sunlight)
+        # 0.01 is the dark limit (1% of normal sunlight). It comes from Bardeen et al. 2017 (photosynthesis stops at 1% of normal sunlight)
         # 0.50 is the maximum brightness that allows the max cap of productivity. It is an assumed number, picked as a round number because real plankton do have maximum light saturation but the exact point varies greatly amongst different species. 
     warm = np.clip((T - 263.0) / (T0 - 263.0), 0, 1)
-        # 263.0 degrees K is the minimum temperature that allows photosynthesis (cold slows down enzymes). It is an assumed number, rooted loosly in seawater freezing temps and plankton photosynthesis. 
+        # 263.0 degrees K is the minimum temperature that allows photosynthesis (cold slows down enzymes). It is an assumed number, based loosely on seawater freezing temps (~271 K) and plankton photosynthesis. 
     return light * warm
-        # multiplying light * warmth is the common convention when modeling photosynthesis, as it roughly matches lab measurements
+        # multiplying light * warmth is the common convention when modeling photosynthesis, as it roughly matches lab measurements. It is an assumed calculation, not derived from physics. 
 
 
 def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
@@ -52,8 +52,9 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
     trans = np.exp(-optical_depth(t, tau_soot, t_soot, tau_sulf, t_sulf))
     Ts, Td = np.full(n, T0), np.full(n, T0)
     prod = np.ones(n)
-    web = np.ones((n, 3))                 # producers, herbivores, predators
+    web = np.ones((n, 3))                 # column 0: producers; column 1: herbivores; column 2: predators
     rates = np.array([12.0, 2.0, 0.5])    # per year: fast plankton, slow predators
+        # the above are assumed numbers, picked to represent the response times to change in food availability of plankton (catch up in about a month) vs bigger animals (take about 2 years to recover)
     for i in range(n - 1):
         net = ABSORBED * trans[i] - EPS * SIGMA * Ts[i]**4
         exch = GAMMA * (Ts[i] - Td[i]) if deep else 0.0
@@ -61,9 +62,11 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
         Td[i + 1] = Td[i] + ((exch * dt * YEAR) / C_D)
         prod[i] = productivity(trans[i], Ts[i])
         # Each level grows toward the level below it (logistic tracking).
+        # measured with Euler's method 
         food = np.array([prod[i], web[i, 0], web[i, 1]])
         web[i + 1] = web[i] + rates * web[i] * (food - web[i]) * dt
         web[i + 1] = np.maximum(web[i + 1], 1e-4)   # small refugia survive
+            # the minimum number is an assumed number. It is not derived from physics. It was picked bc it's nice. Later on I will fine tune it to have it have a more accurate represnetation of recovery time
     prod[-1] = productivity(trans[-1], Ts[-1])
     return t, trans, Ts, Td, prod, web
 

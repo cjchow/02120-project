@@ -29,6 +29,7 @@ Each session is 30–60 min: one idea, a small exercise, and a journal entry. Th
 - [ ] **Tue Nov 10 (30 min):** Redact the journal, commit, push. **Checkpoint 2.**
 - [ ] **Thu Nov 12 (60 min):** Does the model match the papers? Compare the printed numbers to Bardeen and Brugger and find where they disagree, and why.
 - [ ] **Sat Nov 14 (60 min):** Fix the mismatches you found (every changed number cites a paper or says "tuned"). Tests for every function.
+  - **Reminder (added Nov 9):** experiment with the survivor floor `1e-4` in `main.py` (`np.maximum(web[i + 1], 1e-4)`). Try 1e-3 and 1e-6 and record how much the recovery time changes. If it changes a lot, say so in the limitations.
 
 ## Week 4: Put it on the web
 - [ ] **Mon Nov 16 (60 min):** Turn the command-line program into a web app (follow the course's deployment instructions).
