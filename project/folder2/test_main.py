@@ -1,4 +1,4 @@
-from main import optical_depth, productivity
+from main import optical_depth, productivity, food_web_step
 import numpy as np
 
 def test_optical_depth():
@@ -55,6 +55,35 @@ def test_productivity():
     blah_dark = productivity(0.01, 288)
     assert abs(blah_dark - 0.0) < 1e-9
 
+def test_food_web_step():
+    """
+    Tests that a step of the food web is correctly being calculated 
+    
+    - new_row = row + rates * row * (food - row) * dt
+        - row = population of each level (0 = producers, 1 = prey, 2 = predators)
+        - rates = each food level's response to changes in food availability
+        - (food - row) = food available - mouths to feed
+        - dt = 1/365.25 (1 day)
+    """
+    row = np.array([0.9, 0.95, 1.0])
+    p = 0.2
+    rates = np.array([12.0, 2.0, 0.5])
+    dt = 1 / 365.25
+    # uses default floor value of 1e-4
+
+    # tests that it matches my hand check (no typos)
+    bleh_correct = food_web_step(row, p, rates, dt)
+    assert abs(bleh_correct[0] - (0.9 + (12 * 0.9 * (0.2 - 0.9) * (1 / 365.25)))) < 1e-9
+
+    # tests that the floor works (that the maximum ensures the refugia when new_row[i] < 1e-4)
+    # when producers are starving, they change very little, and this tests that the floor is functioning (needs a higher tolerance)
+    row2 = np.array([1e-4, 0.5, 0.5])
+    p2 = 0 # starve them like the french proletariat
+    # rates and dt stay the same
+    bleh_floor = food_web_step(row2, p2, rates, dt)
+    assert abs(bleh_floor[0] - 1e-4) < 1e-16
+
 test_optical_depth()
 test_productivity()
+test_food_web_step()
 print("all tests passed!")

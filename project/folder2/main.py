@@ -44,6 +44,16 @@ def productivity(trans, T):
     return light * warm
         # multiplying light * warmth is the common convention when modeling photosynthesis, as it roughly matches lab measurements. It is an assumed calculation, not derived from physics. 
 
+def food_web_step(row, p, rates, dt, floor = 1e-4):
+    # Each level grows toward the level below it (logistic tracking).
+    # calculated with Euler's method
+    # logistic tracking and Euler's method are assumed methods for simplicity's sake      
+    
+    food = np.array([p, row[0], row[1]])
+    new_row = row + (rates * row * (food - row) * dt)
+    new_row = np.maximum(new_row, floor)   # small refugia survive
+        # the minimum number is an assumed number. It is not derived from physics. It was picked bc it's nice. Later on I will fine tune it to have it have a more accurate represnetation of recovery time
+    return new_row
 
 def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
     dt = DT_DAYS / 365.25
@@ -52,21 +62,18 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
     trans = np.exp(-optical_depth(t, tau_soot, t_soot, tau_sulf, t_sulf))
     Ts, Td = np.full(n, T0), np.full(n, T0)
     prod = np.ones(n)
-    web = np.ones((n, 3))                 # column 0: producers; column 1: herbivores; column 2: predators
+    web = np.ones((n, 3)) # column 0: producers; column 1: herbivores; column 2: predators
     rates = np.array([12.0, 2.0, 0.5])    # per year: fast plankton, slow predators
         # the above are assumed numbers, picked to represent the response times to change in food availability of plankton (catch up in about a month) vs bigger animals (take about 2 years to recover)
+    
     for i in range(n - 1):
         net = ABSORBED * trans[i] - EPS * SIGMA * Ts[i]**4
         exch = GAMMA * (Ts[i] - Td[i]) if deep else 0.0
         Ts[i + 1] = Ts[i] + ((net - exch) * dt * YEAR) / C_S
         Td[i + 1] = Td[i] + ((exch * dt * YEAR) / C_D)
         prod[i] = productivity(trans[i], Ts[i])
-        # Each level grows toward the level below it (logistic tracking).
-        # measured with Euler's method 
-        food = np.array([prod[i], web[i, 0], web[i, 1]])
-        web[i + 1] = web[i] + rates * web[i] * (food - web[i]) * dt
-        web[i + 1] = np.maximum(web[i + 1], 1e-4)   # small refugia survive
-            # the minimum number is an assumed number. It is not derived from physics. It was picked bc it's nice. Later on I will fine tune it to have it have a more accurate represnetation of recovery time
+        web[i+1] = food_web_step(web[i], prod[i], rates, dt)
+        
     prod[-1] = productivity(trans[-1], Ts[-1])
     return t, trans, Ts, Td, prod, web
 
