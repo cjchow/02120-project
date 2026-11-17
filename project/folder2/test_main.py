@@ -1,4 +1,4 @@
-from main import optical_depth, productivity, food_web_step
+from main import optical_depth, productivity, food_web_step, recovery_time
 import numpy as np
 
 def test_optical_depth():
@@ -83,6 +83,21 @@ def test_food_web_step():
     bleh_floor = food_web_step(row2, p2, rates, dt)
     assert abs(bleh_floor[0] - 1e-4) < 1e-16
 
+def test_recovery_time():
+    """ 
+    tests that the recovery time tracker is functioning properly
+    """
+    row1 = np.array([1.0, 0.4, 0.001, 0.3, 0.5, 0.8, 0.96])
+    time_in_years = [0, 1, 2, 3, 4, 5, 6]
+
+    bob = recovery_time(time_in_years, row1)
+    assert bob == 5
+
+    row2 = np.array([1.0, 0.4, 0.001, 0.01, 0.2, 0.3, 0.67])
+    joe = recovery_time(time_in_years, row2)
+    assert np.isnan(joe)
+
+test_recovery_time()
 test_optical_depth()
 test_productivity()
 test_food_web_step()

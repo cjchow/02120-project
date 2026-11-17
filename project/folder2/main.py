@@ -55,7 +55,7 @@ def food_web_step(row, p, rates, dt, floor = 1e-4):
         # the minimum number is an assumed number. It is not derived from physics. It was picked bc it's nice. Later on I will fine tune it to have it have a more accurate represnetation of recovery time
     return new_row
 
-def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
+def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True, floor = 1e-4):
     dt = DT_DAYS / 365.25
     n = int(years / dt)
     t = np.arange(n) * dt
@@ -72,7 +72,7 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
         Ts[i + 1] = Ts[i] + ((net - exch) * dt * YEAR) / C_S
         Td[i + 1] = Td[i] + ((exch * dt * YEAR) / C_D)
         prod[i] = productivity(trans[i], Ts[i])
-        web[i+1] = food_web_step(web[i], prod[i], rates, dt)
+        web[i+1] = food_web_step(web[i], prod[i], rates, dt, floor)
         
     prod[-1] = productivity(trans[-1], Ts[-1])
     return t, trans, Ts, Td, prod, web
@@ -81,6 +81,15 @@ def run(tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True):
 def years_where(t, mask):
     return mask.sum() * (t[1] - t[0])
 
+def recovery_time(t, x, threshhold=0.75):
+    # the threshhold is an assumed number. I picked it bc 75% of the original population is a good indicator that that population will continue recovering towards the initial population
+    i_min = np.argmin(x)
+
+    for i in range(i_min, len(x)):
+        if x[i] >= threshhold:
+            return t[i]
+        
+    return np.nan
 
 def hand_check():
     """Small constant forcing, no deep ocean: compare with the exact solution
@@ -107,7 +116,6 @@ def report(name, t, trans, Ts, prod, web):
     for j, lbl in enumerate(["producers", "herbivores", "predators"]):
         print(f"  {lbl:10s} fall below 10% at year {first_low(web[:, j], 0.1):5.2f},"
               f" minimum {web[:, j].min():.4f}")
-
 
 def main():
     p = argparse.ArgumentParser(description="K-Pg impact winter, first draft")
