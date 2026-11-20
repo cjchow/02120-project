@@ -65,6 +65,10 @@ aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-heig
 .term .k { color: var(--green); } .term .h { color: #f3e6d6; font-weight: 700; } .term .dim { opacity: .65; }
 .notes { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 14px; overflow-y: auto; flex: 1 1 0; min-height: 80px; }
 .notes h3 { margin: 0 0 4px; font-size: 15px; }
+.notes details { margin: 0 0 6px; }
+.notes summary { cursor: pointer; font-weight: bold; font-size: 15px; padding: 2px 0; }
+.notes summary:hover { color: var(--brown); }
+.notes details[open] summary { margin-bottom: 4px; }
 .notes p { margin: 0 0 6px; } .notes p:last-child { margin: 0; }
 
 @media (max-width: 980px) { .main { grid-template-columns: minmax(0, 1fr); } .notes { flex: none; } .plot { height: 240px; } }
@@ -198,12 +202,16 @@ aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-heig
     <aside>
       <div class="term" aria-label="Model output"><pre id="term"></pre></div>
       <div class="notes">
-        <h3>Reading the graphs</h3>
-        <p>The time axis stretches the first year (monthly steps), then counts years on a log scale out to 60. Hover for exact values.</p>
-        <p>The dashed gray line is the no-impact control. It stays flat at 15 &deg;C (288 K), which checks that the model is balanced before the impact.</p>
-        <h3>The animals</h3>
-        <p>The animals at the bottom are a drawing of the model's herbivore and predator levels. The herd size follows each level's lowest point: a full herd is 8 herbivores and 6 predators (assumed sizes), times the lowest biomass fraction, with at least 1 survivor. The ferns, trees and the green plankton dots in the sea follow the producers level the same way: at its lowest point, missing trees stand dead and missing ferns leave bare ground. The small sea animals (fish, ammonites, belemnites, baby turtles) follow the herbivore level, and the plesiosaur and <i>Mosasaurus</i> follow the predator level (both at full strength, at least 1 survivor). When one animal wanders off, another kind from the same level walks on, so the count stays the same. All five kinds lived at the impact. <i>Quetzalcoatlus</i> is a flying pterosaur and the plesiosaur and <i>Mosasaurus</i> are marine reptiles. None of these three is a dinosaur.</p>
-        <p>This is a simple global-mean model. Its three food-web levels are generic groups, not counts of any species.</p>
+        <!-- Each <details> is a click-to-open section, closed by default. Christina writes the text inside. -->
+        <details>
+        <summary>Reading the graphs</summary>
+        <p>The x-axes mark time, which stretches out the first year with monthly steps, then counts on a log scale until 60 years have elapsed. Hover over the graphs for exact values.</p>
+        <p>The dashed grey line displays the no-impact control, or no soot or sulfate in the sky. It remains constant at 15&deg;C (288 K) to ensure that each scenario is balanced, or that there is no drift when nothing happens.</p>
+        </details>
+        <details>
+        <summary>The animals</summary>
+        <p>The animals at the bottom are drawings proportional to the model&rsquo;s food web levels. This model is a global-mean model that compares the percentage of each food web level to normal levels, and does not count specific species populations, but sample species are shown to demonstrate relative herd sizes under each scenario. A full herd is set at 8 prey and 6 predators for land and 6 groups of prey and 2 predators for the sea (assumed sizes), which update in each scenario to reflect its lowest point, saving at least 1 survivor as the refugia. The ferns, trees, and plankton (green dots) represent the producer level; the <i>Pachycephalosaurus</i>, <i>Triceratops</i>, <i>Alamosaurus</i>, fish, ammonites, belemnites, and turtles are the prey; and the <i>Tyrannosaurus rex</i>, <i>Quetzalcoatlus</i>, <i>Mosasaurus</i>, and plesiosaur are the predators. All species are from the late Cretaceous period, although <i>Quetzalcoatlus</i> is not a dinosaur but a pterosaur and the plesiosaur and <i>Mosasaurus</i> are marine reptiles.</p>
+        </details>
         <p><span class="dim">Graphs show output of <code>run()</code> (exported by <code>export_data.py</code> to <code>data.json</code>) with soot &tau; = 8.0, lasting 1.5 yr, and sulfate &tau; = 2.0, lasting 3.0 yr.</span></p>
       </div>
     </aside>

@@ -44,3 +44,31 @@ Christina's note: "soot/sulfate toggle? or time toggle?? interactive"
 - Done and tested: `scenario_dict(results, idx)` (Ts, trans, prod sampled as lists; `web` is 2-D, to add later).
 - Next: all 4 scenarios, then `json.dump` to `data.json`, then a test (the "neither" run must stay at T0 = 288 K), then the page, then Vercel.
 - To solve: export_data.py (in website/) needs to import `run` from folder2/main.py.
+
+## Progress (11/20): v1 live on Vercel
+- **Import solved:** `sys.path.append("../simulation")` before `from main import run`. This only works when the script is run from `project/website/` (relative paths start from the terminal's folder).
+- **`export_data.py` `main()`** (behind `if __name__ == "__main__":`, so tests don't trigger it) runs the 4 scenarios. To turn an aerosol off, set its tau to 0 and keep its t (t = 1.0, same as main.py:131, because t is divided into). It builds `{"years", "x", "scenarios"}` and writes `data.json`. `scenario_dict` now includes `web` (71 x 3).
+- **Checked by eye in data.json:** "neither" has Ts = 288.0 everywhere and web = [1.0, 1.0, 1.0] everywhere.
+- **Page:** `index.html` (written by Claude, as agreed with the TA) loads `data.json`. Test it locally with `python -m http.server 8000` in `project/website`, then open http://localhost:8000.
+- **Vercel:** Root Directory = `project/website`. The 404 was fixed by setting it and redeploying.
+- **Page edits:** removed the "Preview" tag; Pachycephalosaurus always in front; sea predators (2 at full strength) follow the predator level; notes are now click-to-open sections with my own text.
+- Without `"report"` in data.json, the readout box says "Summary numbers coming soon" and the herd sizes use the minimum of the sampled web.
+
+## To do
+### Now
+1. Commit and push today's page edits.
+2. Check that the site is public: open the short `.vercel.app` link in an incognito window. If you get a login page, go to Settings → Deployment Protection and turn off Vercel Authentication.
+
+### Next session
+3. `test_neither_stays_at_T0` in `test_export_data.py`: call `run(0.0, 1.0, 0.0, 1.0)` (not data.json, which could be outdated), then assert Ts == T0 and web == 1.0. Do a mutation check after (change a tau to 0.1, so the test should fail).
+4. `report_dict` in Python (uses `T0`, `years_where`, `recovery_time` from main.py). Shape the page expects per scenario: `"report": {"peak_cooling", "yrs_freezing", "yrs_dark", "levels": [{"min", "below10", "recover"} x3]}`.
+
+### Before 12/1 (stage 2)
+5. Page text: the question, how the model works (haze → sunlight → temperature → photosynthesis → food web), checks (Bardeen, Brugger, T0), limitations.
+6. Video link on the page.
+7. `__file__` path fix so `export_data.py` (and its `data.json` output) works from any folder.
+
+### Ongoing / later
+8. Exam: GO OVER TAU AND SOOT FORMULAS (`optical_depth` from memory).
+9. Skim the journal for anything personal before each push.
+10. Recursion side quest (recursive food-web step in a scratch file), once the project is nearly done.
