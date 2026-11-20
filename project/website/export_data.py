@@ -1,3 +1,7 @@
+import json
+import sys
+sys.path.append("../simulation")
+from main import run
 import numpy
 
 def symlog_x(t: float) -> float:
@@ -49,4 +53,37 @@ def scenario_dict(results, idx):
         "Ts":    Ts[idx].tolist(),
         "trans": trans[idx].tolist(),
         "prod":  prod[idx].tolist(),
+        "web": web[idx].tolist(),
     }
+
+def main():
+    #   tau_soot, t_soot, tau_sulf, t_sulf, years=60, deep=True, floor = 1e-4)
+    both = run(8.0, 1.5, 2.0, 3.0, years=60)
+    soot = run(8.0, 1.5, 0.0, 1.0, years=60)
+    sulfate = run(0.0, 1.0, 2.0, 3.0, years=60)
+    neither = run(0.0, 1.0, 0.0, 1.0, years=60)
+
+    idx = snapshot_indices(60)
+    t = both[0]
+    years = t[idx].tolist()    # times at the snapshots, as a list
+    x = []
+
+    for y in years: 
+        x.append(symlog_x(y))
+
+    data = {
+        "years": years,
+        "x": x, 
+        "scenarios": {
+            "both": scenario_dict(both, idx),
+            "soot": scenario_dict(soot, idx),
+            "sulfate": scenario_dict(sulfate, idx),
+            "neither": scenario_dict(neither, idx),
+        },
+    }
+
+    with open("data.json", "w") as f:
+        json.dump(data, f)
+        
+if __name__ == "__main__":
+    main()

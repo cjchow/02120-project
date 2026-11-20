@@ -1,0 +1,747 @@
+<title>K-Pg Impact Winter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one screen. Header + controls on top; 2x2 chart grid beside a terminal readout; fixed grassy "taskbar" of animals at the bottom */
+:root {
+  --bg: #d3c6b5;        /* page background (Christina's pick) */
+  --ink: #2c241a;       /* dark brown text */
+  --card: #e6dccf;      /* lighter tan for panels */
+  --line: #b8a991;      /* hairlines */
+  --green: #8fb195;  --green-ink: #4f7a58;
+  --violet: #a78ada; --violet-ink: #6c4fa3;
+  --pink: #c59fc5;   --pink-ink: #94608f;
+  --brown: #ba6c3f;
+  --peach: #e1bca7;
+  --yellow: #d9b54a; --yellow-ink: #9a7a1c;
+  --serif: "Times New Roman", Times, "Liberation Serif", serif;
+  --mono: "Courier New", Courier, monospace;
+  --bar: 130px;
+  color-scheme: light;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--serif); font-size: 16px; line-height: 1.4;
+  padding-bottom: calc(var(--bar) + env(safe-area-inset-bottom, 0px)); }
+.wrap { padding-block: 12px 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 10px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 18px; }
+header h1 { font-size: clamp(26px, 3.2vw, 36px); line-height: 1.05; margin: 0; font-weight: 700; }
+header p { margin: 0; flex: 1 1 420px; min-width: 0; font-size: 15px; }
+.chain { font-style: italic; }
+.preview-tag { display: inline-block; background: var(--peach); border: 1px solid var(--brown); color: var(--ink); vertical-align: middle;
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; font-weight: 700; margin-left: 6px; }
+
+.console { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; }
+.console-label { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--brown); }
+.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-size: 17px; }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.track { width: 46px; height: 26px; border-radius: 13px; background: var(--line); position: relative; transition: background .2s; flex: none; }
+.track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); transition: transform .2s; box-shadow: 0 1px 2px rgb(44 36 26 / .35); }
+.toggle input:checked + .track { background: var(--violet); }
+.toggle input:checked + .track::after { transform: translateX(20px); }
+.toggle input:focus-visible + .track { outline: 2px solid var(--ink); outline-offset: 2px; }
+.toggle small { font-size: 13px; opacity: .75; margin-left: 4px; }
+#run { font-family: var(--serif); font-size: 17px; font-weight: 700; color: #fbf4ec; background: var(--brown);
+  border: 0; border-radius: 4px; padding: 8px 18px; cursor: pointer; box-shadow: 0 2px 0 #8a4c2a; }
+#run:hover { filter: brightness(1.07); }
+#run:active { transform: translateY(2px); box-shadow: none; }
+#run:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+#run:disabled { opacity: .7; cursor: progress; }
+#run.stale { animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { box-shadow: 0 2px 0 #8a4c2a, 0 0 0 5px rgb(186 108 63 / .3); } }
+.showing { margin-left: auto; font-size: 15px; }
+.showing b { font-size: 16px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr); gap: 12px; align-items: stretch; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.chart { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px 2px; min-width: 0; }
+.chart h2 { margin: 0 0 0 6px; font-size: 16px; font-weight: 700; }
+.chart h2 span { font-weight: 400; font-size: 13px; opacity: .75; margin-left: 6px; }
+.plot { height: clamp(150px, calc((100dvh - var(--bar) - 250px) / 2), 330px); }
+
+aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+.term { background: var(--ink); color: var(--peach); border-radius: 6px; padding: 12px; font-family: var(--mono);
+  font-size: 13px; line-height: 1.45; overflow-x: auto; }
+.term pre { margin: 0; font-family: inherit; white-space: pre-wrap; }
+.term .k { color: var(--green); } .term .h { color: #f3e6d6; font-weight: 700; } .term .dim { opacity: .65; }
+.notes { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; font-size: 14px; overflow-y: auto; flex: 1 1 0; min-height: 80px; }
+.notes h3 { margin: 0 0 4px; font-size: 15px; }
+.notes p { margin: 0 0 6px; } .notes p:last-child { margin: 0; }
+
+@media (max-width: 980px) { .main { grid-template-columns: minmax(0, 1fr); } .notes { flex: none; } .plot { height: 240px; } }
+@media (max-width: 640px) { .grid { grid-template-columns: minmax(0, 1fr); } .showing { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* fern-and-tree "taskbar" of animals */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; height: calc(var(--bar) + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  background: linear-gradient(#efe6da, var(--peach)); border-top: 1px solid var(--line); overflow: hidden; }
+.herdinfo { position: absolute; top: 5px; left: max(16px, env(safe-area-inset-left, 0px)); font-size: 13px; z-index: 3;
+  background: rgb(230 220 207 / .88); padding: 1px 8px; border-radius: 3px; max-width: calc(100% - 32px); }
+.herdinfo b { color: var(--green-ink); } .herdinfo b.c { color: var(--brown); }
+#trees { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); height: 120px; opacity: .5; }
+.tree { position: absolute; bottom: 0; transform: translateX(-50%); }
+.tree svg { display: block; }
+.field { position: absolute; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); height: 110px; }
+.grass { position: absolute; left: 0; right: 0; bottom: 0; height: calc(36px + env(safe-area-inset-bottom, 0px)); z-index: 2; pointer-events: none;
+  background: linear-gradient(transparent 30px, #7a5a43 30px); }
+.fern { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 0px); width: 96px; height: 34px; background: no-repeat left bottom / 96px 34px; }
+.fern::after { content: ""; position: absolute; left: 0; right: 0; bottom: -40px; height: 44px; background: var(--green-ink); border-radius: 50% 50% 0 0 / 8px 8px 0 0; }
+.beast { position: absolute; bottom: 0; transform: translateX(-50%); transition: left 3s linear; }
+.beast.flyer { bottom: 52px; }
+.face { transition: transform .45s ease-in-out; transform-origin: 50% 100%; }
+.beast svg { display: block; overflow: visible; transform-origin: 30% 100%; animation: breathe 3.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.41s); }
+.beast.flyer svg { transform-origin: 50% 50%; animation: soar 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.5s); }
+.beast.graze svg { animation: graze 2.8s ease-in-out 1; }
+.beast.butt svg { animation: butt .8s ease-in-out 3; }
+.beast.walking svg { animation: step .38s ease-in-out infinite alternate; }
+.beast.running svg { animation: step .16s ease-in-out infinite alternate; }
+.beast.flyer.gliding svg, .beast.flyer.running svg { animation: soar 1.6s ease-in-out infinite; }
+@keyframes breathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.02); } }
+@keyframes soar { 0%,100% { transform: translateY(-5px) rotate(-2deg); } 50% { transform: translateY(5px) rotate(2deg); } }
+@keyframes graze { 0%,100% { transform: rotate(0); } 20%,40%,60% { transform: rotate(6deg); } 30%,50% { transform: rotate(3.5deg); } }
+@keyframes butt { 0%,100% { transform: none; } 35% { transform: translateX(-7px) rotate(-4deg); } 55% { transform: translateX(6px) rotate(5deg); } 70% { transform: translateX(2px); } }
+@keyframes step { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-3px) rotate(1deg); } }
+
+/* fiery asteroid + light-tan white-out */
+#rock { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 60; pointer-events: none; }
+#rock .tail { position: absolute; left: 0; top: -36px; width: 420px; height: 72px; transform-origin: 0 50%; }
+#rock .tail::before, #rock .tail::after { content: ""; position: absolute; inset: 0; border-radius: 0 50% 50% 0 / 0 50% 50% 0;
+  clip-path: polygon(0 20%, 100% 46%, 100% 54%, 0 80%); animation: flicker .12s ease-in-out infinite alternate; }
+#rock .tail::before { background: linear-gradient(90deg, #ffd84d, #ff8a1f 25%, #d9381e 55%, rgb(120 30 10 / 0)); filter: blur(4px); }
+#rock .tail::after { inset: 18px 0 18px 0; clip-path: polygon(0 10%, 70% 46%, 70% 54%, 0 90%);
+  background: linear-gradient(90deg, #fffbe6, #ffe27a 30%, rgb(255 160 40 / 0) 70%); filter: blur(2px); animation-duration: .09s; }
+@keyframes flicker { from { transform: scaleY(.88); opacity: .9; } to { transform: scaleY(1.08); opacity: 1; } }
+#rock .stone { position: absolute; left: -38px; top: -38px; width: 76px; height: 76px; border-radius: 48% 52% 46% 54% / 52% 46% 54% 48%;
+  background:
+    radial-gradient(circle at 62% 38%, rgb(30 24 22 / .55) 0 6px, transparent 7px),
+    radial-gradient(circle at 44% 64%, rgb(30 24 22 / .45) 0 8px, transparent 9px),
+    radial-gradient(circle at 26% 74%, #fffbe6 0, #ffd84d 18%, #ff8a1f 38%, #c2401d 58%, #3b302c 82%);
+  box-shadow: 0 0 18px 6px rgb(255 216 77 / .9), 0 0 44px 18px rgb(255 138 31 / .65), 0 0 90px 40px rgb(217 56 30 / .35);
+  animation: glow .15s ease-in-out infinite alternate; }
+@keyframes glow { to { box-shadow: 0 0 22px 8px rgb(255 216 77 / 1), 0 0 52px 22px rgb(255 138 31 / .7), 0 0 100px 46px rgb(217 56 30 / .4); } }
+#flash { position: fixed; inset: 0; z-index: 70; pointer-events: none; opacity: 0; background: #efe6da;
+  display: grid; place-items: center; padding: 16px; }
+#flash p { margin: 0; font-size: clamp(24px, 4vw, 44px); text-align: center; color: var(--ink); opacity: 0; text-wrap: balance; }
+#flash p b { color: var(--brown); }
+#flash svg.fossil { position: absolute; width: min(94vw, 1150px); max-height: 82vh; height: auto; opacity: .2; }
+#flash p { position: relative; background: rgb(230 220 207 / .88); border: 1px solid var(--line); border-radius: 8px;
+  padding: .45em .9em; box-shadow: 0 6px 24px rgb(44 36 26 / .12); max-width: min(90vw, 900px); }
+#flash .fossil-cap { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; text-align: center; font-style: italic; font-size: 14px; opacity: .7; }
+
+#lake { position: absolute; right: 0; top: 30px; bottom: 0; width: 32%; z-index: 2; overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 16% 100%);
+  background:
+    repeating-linear-gradient(105deg, rgb(255 255 255 / .07) 0 14px, transparent 14px 46px),
+    linear-gradient(#b7d3c8 0%, #79a7a0 35%, #45716f 75%, #2c4c4e 100%); }
+#lake::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: rgb(255 255 255 / .55); }
+#lake .depth { position: absolute; right: 8px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #f3ece2; opacity: .85; z-index: 1; }
+#lake .depth.s { top: 6px; color: var(--ink); } #lake .depth.d { bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+#lake .tick { position: absolute; right: 0; width: 6px; height: 1px; background: rgb(243 236 226 / .7); }
+.plankton { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #c9e6b0; box-shadow: 0 0 3px #e9f7c8;
+  animation: drift 6s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: translate(0, 0); } to { transform: translate(6px, 4px); } }
+.plesio svg { display: block; animation: paddle 2.6s ease-in-out infinite; }
+@keyframes paddle { 0%,100% { transform: rotate(-2deg) translateY(-2px); } 50% { transform: rotate(2deg) translateY(2px); } }
+.moss { position: absolute; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); height: 13px; border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%; opacity: var(--o);
+  background: radial-gradient(ellipse at 40% 30%, var(--green) 0 35%, var(--green-ink) 75%); }
+.moss::before, .moss::after { content: ""; position: absolute; bottom: 2px; width: 45%; height: 9px; border-radius: 50%; background: var(--green); }
+.moss::before { left: -18%; } .moss::after { right: -16%; background: var(--green-ink); }
+
+/* center split: sea cliff + sea on the right half */
+#lake { left: 57%; right: 0; width: auto; top: 58px; clip-path: none; }
+#cliff { position: absolute; left: 45%; width: 16%; bottom: 0; height: 120px; z-index: 3; pointer-events: none; }
+.swimmer { position: absolute; transform: translate(-50%, -50%); }
+.swimmer .face { transition: transform .5s ease-in-out; }
+.swimmer svg { display: block; }
+.swimmer.plesio svg, .swimmer.mosa svg { animation: paddle 2.6s ease-in-out infinite; }
+.swimmer.ammonite svg { animation: drift 3s ease-in-out infinite alternate; }
+.swimmer.turtle svg { animation: paddle 1.4s ease-in-out infinite; }
+.swimmer.school .face { position: relative; width: 50px; height: 20px; }
+.fish { position: absolute; animation: drift 1.2s ease-in-out infinite alternate; }
+.fish:nth-child(2n) { animation-delay: -.6s; }
+.swimmer.frantic svg, .swimmer.frantic .fish { animation: frantic .14s ease-in-out infinite alternate !important; }
+@keyframes frantic { from { transform: translateY(-2px) rotate(-6deg); } to { transform: translateY(2px) rotate(6deg); } }
+/* flying and wading Quetzalcoatlus always sits in front of the water */
+.beast.flyer { z-index: 4; }
+.face svg.stand { display: none; }
+.beast.perched { bottom: 72px; }
+.beast.perched .face svg:first-child { display: none; }
+.beast.perched .face svg.stand { display: block; animation: breathe 3s ease-in-out infinite; }
+.beast.perched.snatch .face svg.stand { transform-origin: 40% 100%; animation: snatch 1.3s ease-in-out 1; }
+@keyframes snatch { 0%,100% { transform: rotate(0); } 35%,55% { transform: rotate(24deg) translateY(4px); } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+
+<div class="wrap">
+  <header>
+    <h1>K-Pg Impact Winter<span class="preview-tag">Preview</span></h1>
+    <p>How much did the asteroid impact 66 million years ago disrupt climate and life? <span class="chain">Haze &rarr; sunlight &rarr; temperature &rarr; photosynthesis &rarr; food web.</span></p>
+  </header>
+
+  <section class="console" aria-label="Simulation controls">
+    <span class="console-label">Simulation controls</span>
+    <label class="toggle"><input type="checkbox" id="soot" checked><span class="track"></span>
+      <span>Soot<small>from global wildfires</small></span></label>
+    <label class="toggle"><input type="checkbox" id="sulf" checked><span class="track"></span>
+      <span>Sulfate<small>from vaporized rock</small></span></label>
+    <button id="run" type="button">Run simulation</button>
+    <div class="showing" aria-live="polite">Showing: <b id="showing">Soot + sulfate</b></div>
+  </section>
+
+  <div class="main">
+    <div class="grid">
+      <div class="chart"><h2>Sunlight at surface<span>% of normal</span></h2><div class="plot" id="p-trans"></div></div>
+      <div class="chart"><h2>Surface temperature<span>&deg;C, global mean</span></h2><div class="plot" id="p-Ts"></div></div>
+      <div class="chart"><h2>Photosynthesis<span>% of normal</span></h2><div class="plot" id="p-prod"></div></div>
+      <div class="chart"><h2>Food web<span>biomass, % of normal (log scale)</span></h2><div class="plot" id="p-web"></div></div>
+    </div>
+    <aside>
+      <div class="term" aria-label="Model output"><pre id="term"></pre></div>
+      <div class="notes">
+        <h3>Reading the graphs</h3>
+        <p>The time axis stretches the first year (monthly steps), then counts years on a log scale out to 60. Hover for exact values.</p>
+        <p>The dashed gray line is the no-impact control. It stays flat at 15 &deg;C (288 K), which checks that the model is balanced before the impact.</p>
+        <h3>The animals</h3>
+        <p>The animals at the bottom are a drawing of the model's herbivore and predator levels. The herd size follows each level's lowest point: a full herd is 8 herbivores and 6 predators (assumed sizes), times the lowest biomass fraction, with at least 1 survivor. The ferns, trees and the green plankton dots in the sea follow the producers level the same way. The small sea animals (fish, ammonites, belemnites, baby turtles) follow the herbivore level: at its lowest point, missing trees stand dead and missing ferns leave bare ground. When one animal wanders off, another kind from the same level walks on, so the count stays the same. All five kinds lived at the impact. <i>Quetzalcoatlus</i> is a flying pterosaur and the plesiosaur and <i>Mosasaurus</i> are marine reptiles. None of these three is a dinosaur.</p>
+        <p>This is a simple global-mean model. Its three food-web levels are generic groups, not counts of any species.</p>
+        <p><span class="dim">Preview built from <code>run()</code> with the default scenario (soot &tau; = 8.0, lasting 1.5 yr; sulfate &tau; = 2.0, lasting 3.0 yr). The real site will read <code>data.json</code>.</span></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="bar" id="bar" aria-label="Animals">
+  <div class="herdinfo" id="herdinfo"></div>
+  <div id="trees" aria-hidden="true"></div>
+  <div class="field" id="field"></div>
+  <div id="lake" aria-label="Sea cross-section"><span class="depth s">surface</span><span class="depth d">deep</span><i class="tick" style="top:25%"></i><i class="tick" style="top:50%"></i><i class="tick" style="top:75%"></i><div class="plankton-layer"></div></div>
+  <svg id="cliff" viewBox="0 0 100 120" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 120 L0 108 Q20 104 38 82 L70 38 L94 35 Q97 37 95 41 L76 120Z" fill="#9c9c96"/><path d="M95 41 L76 120" stroke="#7d7d78" stroke-width="1.4"/>
+    <path d="M24 100 Q50 96 79 98 M40 80 Q60 76 79 78 M54 62 Q68 58 80 60 M64 46 Q74 43 84 46" stroke="#7d7d78" stroke-width="1.2" fill="none"/>
+    <path d="M22 100 Q30 96 38 84 L42 86 Q34 98 26 103Z" fill="var(--green-ink)"/>
+    <path d="M70 38 L94 35 Q97 37 94 41 L72 42Z" fill="#86867f"/><path d="M71 38 L94 35" stroke="#b3b3ad" stroke-width="1"/>
+  </svg>
+  <div class="grass" aria-hidden="true"></div>
+</div>
+<div id="flash" aria-hidden="true"><p id="flash-text"></p></div>
+<script>
+let DATA;  // filled from data.json (written by export_data.py) at startup
+// Animals alive at the K-Pg impact. Drawings face right; [viewBox width, height px, fill token, front paths, back paths, eye]
+const SPECIES = {
+  trike: { name: 'Triceratops', diet: 'h', vw: 120, h: 60, fill: '--ink',
+    P: ['M2 40 Q20 26 50 26 Q76 26 84 38 L96 40 Q110 42 114 50 L112 56 L104 54 Q96 56 90 54 Q80 58 70 58 Q40 60 24 52 Q10 48 2 40Z','M84 44 L78 18 Q90 8 100 18 L96 42Z','M98 36 L119 22 L102 40Z','M110 46 L117 39 L115 48Z','M30 52 L42 52 L42 74 L48 76 L30 76Z','M72 54 L84 54 L84 74 L90 76 L72 76Z'],
+    B: ['M96 40 L114 30 L100 43Z','M44 54 L52 54 L52 76 L44 76Z'], eye: [101, 44] },
+  alamo: { name: 'Alamosaurus', diet: 'h', vw: 160, h: 86, fill: '--green-ink',
+    P: ['M2 44 Q30 36 44 34 Q60 28 80 30 Q96 30 110 18 Q124 6 136 4 L148 4 Q154 6 152 10 L140 12 Q128 14 118 28 Q108 44 100 52 Q86 62 66 62 Q48 62 38 54 Q24 50 2 44Z','M44 54 L56 54 L56 76 L44 76Z','M86 54 L98 54 L98 76 L86 76Z'],
+    B: ['M56 58 L65 58 L65 76 L56 76Z','M97 50 L105 48 L105 76 L97 76Z'], eye: [146, 7] },
+  pachy: { name: 'Pachycephalosaurus', diet: 'h', vw: 112, h: 50, fill: '--pink-ink',
+    P: ['M4 40 Q28 32 50 32 Q66 32 76 30 L84 26 Q85 16 95 15 Q106 16 107 26 L108 32 Q106 36 100 36 L92 36 Q88 44 80 48 Q66 56 52 54 Q34 50 4 40Z','M50 50 L60 50 L62 62 L60 74 L68 76 L52 76 L54 62Z','M84 42 L88 50 L86 50 L82 44Z'],
+    B: ['M62 50 L68 52 L70 64 L68 74 L74 76 L62 76 L63 64Z'], eye: [100, 27] },
+  trex: { name: 'T. rex', diet: 'c', vw: 120, h: 74, fill: '--brown',
+    P: ['M2 38 Q28 28 50 28 Q66 26 78 22 L100 18 Q114 18 116 28 L114 34 L100 34 L104 38 L90 40 Q84 50 72 54 Q58 58 46 52 Q28 44 2 38Z','M46 48 L60 48 L62 62 L60 74 L68 76 L50 76 L52 62Z','M86 42 L92 46 L90 48 L84 45Z'],
+    B: ['M60 50 L68 52 L70 64 L68 74 L74 76 L62 76 L62 64Z'], eye: [102, 23] },
+  quetz: { name: 'Quetzalcoatlus', diet: 'c', fly: 1, vw: 140, h: 52, fill: '--violet-ink',
+    P: ['M48 44 L20 4 Q42 12 70 42Z','M44 44 Q56 38 68 44 Q60 52 46 50Z','M64 42 Q80 34 92 34 L94 32 Q100 26 106 30 L138 36 L106 38 Q98 40 94 38 Q80 40 66 48Z','M100 28 L93 16 L105 28Z','M46 48 L28 54 L30 56 L48 51Z'],
+    B: ['M50 46 L8 30 Q30 28 64 44Z'], eye: [104, 32] },
+};
+const HERB = ['trike', 'pachy', 'alamo'], CARN = ['trex', 'quetz'];
+const MAX_H = 8, MAX_C = 6;   // full herd sizes for the drawing (assumed)
+const LAND = 43;   // land animals stay left of the sea cliff (percent of bar width)
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let beasts = [], chasing = false;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const later = (ms, f) => setTimeout(f, ms);
+
+// ---------- scenery: ferns along the bottom, a few Cretaceous trees behind ----------
+function frondTile() {
+  const W = 96, H = 34, out = [];
+  const frond = (x0, h, lean, col) => {
+    const P = (t) => { const x1 = x0 + lean * .3, y1 = H - h * .7, x2 = x0 + lean, y2 = H - h, u = 1 - t;
+      return [u * u * x0 + 2 * u * t * x1 + t * t * x2, u * u * H + 2 * u * t * y1 + t * t * y2]; };
+    let d = `M${x0} ${H}`;
+    for (let t = .1; t <= 1.001; t += .1) { const [x, y] = P(t); d += ` L${x.toFixed(1)} ${y.toFixed(1)}`; }
+    out.push(`<path d="${d}" stroke="${col}" stroke-width="1.4" fill="none"/>`);
+    for (let t = .18; t < .95; t += .085) {
+      const [x, y] = P(t), [xa, ya] = P(t + .01); let nx = -(ya - y), ny = xa - x; const n = Math.hypot(nx, ny); nx /= n; ny /= n;
+      const len = 7 * (1 - t) + 1.5;
+      out.push(`<path d="M${x.toFixed(1)} ${y.toFixed(1)} l${(nx * len + (xa - x) * 30).toFixed(1)} ${(ny * len - 1).toFixed(1)} M${x.toFixed(1)} ${y.toFixed(1)} l${(-nx * len + (xa - x) * 30).toFixed(1)} ${(-ny * len - 1).toFixed(1)}" stroke="${col}" stroke-width="2" stroke-linecap="round"/>`);
+    }
+  };
+  frond(8, 30, 10, '#4f7a58'); frond(30, 22, -8, '#8fb195'); frond(44, 32, -12, '#4f7a58');
+  frond(60, 26, 9, '#8fb195'); frond(78, 31, -6, '#4f7a58'); frond(90, 20, 6, '#8fb195');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${out.join('')}</svg>`;
+}
+function araucaria(h) {
+  let s = `<rect x="28" y="12" width="4" height="108" fill="var(--brown)"/>`;
+  for (let k = 0; k < 7; k++) { const y = 10 + k * 14, w = 6 + k * 3.4; s += `<path d="M30 ${y} L${30 - w} ${y + 12} L${30 + w} ${y + 12}Z" fill="var(--green-ink)"/>`; }
+  return `<svg viewBox="0 0 60 120" height="${h}" width="${h / 2}">${s}</svg>`;
+}
+function cycad(h) {
+  let s = `<path d="M25 50 L26 30 L34 30 L35 50Z" fill="var(--brown)"/>`;
+  for (let a = -75; a <= 75; a += 25) s += `<ellipse cx="30" cy="12" rx="3.5" ry="17" fill="var(--green-ink)" transform="rotate(${a} 30 30)"/>`;
+  return `<svg viewBox="0 0 60 50" height="${h}" width="${h * 1.2}">${s}</svg>`;
+}
+function treefern(h) {
+  let s = `<path d="M34 100 Q38 60 35 30" stroke="var(--brown)" stroke-width="4" fill="none"/>`;
+  for (let a = -120; a <= 120; a += 30) s += `<ellipse cx="35" cy="8" rx="4" ry="22" fill="var(--green)" transform="rotate(${a} 35 30)"/>`;
+  return `<svg viewBox="0 0 70 100" height="${h}" width="${h * .7}">${s}</svg>`;
+}
+// Plants follow the model's producers level (web column 0) at its lowest point: missing trees stand dead, missing ferns leave bare ground.
+const FERN_TILE = 'data:image/svg+xml,' + encodeURIComponent(frondTile());
+function deadTree(kind, h) {
+  if (kind === 'a') return `<svg viewBox="0 0 60 120" height="${h}" width="${h / 2}"><rect x="28" y="30" width="4" height="90" fill="var(--brown)"/><path d="M30 52 L18 44 M30 70 L42 62 M30 88 L20 82" stroke="var(--brown)" stroke-width="2"/></svg>`;
+  return `<svg viewBox="0 0 60 50" height="${h}" width="${h * 1.2}"><path d="M25 50 L26 34 L34 32 L35 50Z" fill="var(--brown)"/></svg>`;
+}
+function scenery(frac) {
+  const T = [[3, 'a', 118], [9, 'c', 46], [16, 'f', 92], [23, 'a', 104], [30, 'c', 40], [36, 'f', 84]];
+  const alive = Math.round(T.length * Math.min(1, frac));
+  const keep = new Set([0, 3, 1, 4, 2, 5].slice(0, alive));       // which slots stay green
+  document.getElementById('trees').innerHTML = T.map(([x, k, h], i) => {
+    const s = keep.has(i) ? (k === 'a' ? araucaria(h) : k === 'c' ? cycad(h) : treefern(h)) : deadTree(k === 'f' ? 'a' : k, k === 'a' ? h * .8 : h * .7);
+    return `<div class="tree" style="left:${x}%">${s}</div>`;
+  }).join('');
+  const g = document.querySelector('.grass'), W = g.clientWidth || innerWidth, full = Math.ceil(W * (LAND + 2) / 100 / 60);
+  const n = Math.round(full * Math.min(1, frac));
+  const slots = [...Array(full).keys()].sort(() => Math.random() - .5).slice(0, n);
+  // moss patches always stay: the model's survivor floor ("small refugia survive")
+  const MOSS = [[6, 54], [19, 40], [31, 60]];
+  g.innerHTML = MOSS.map(([x, w], i) => `<span class="moss" style="left:${x}%;width:${w}px;--o:${i % 2 ? .75 : .95}"></span>`).join('') + slots.map(i => `<span class="fern" style="left:${(i * 60 - 18).toFixed(0)}px;background-image:url('${FERN_TILE}')"></span>`).join('');
+}
+
+// ---------- herd size from the model ----------
+function lowest(key, j) {
+  const web = DATA.scenarios[key].web; let k = 0;
+  web.forEach((r, i) => { if (r[j] < web[k][j]) k = i; });
+  // exact minimum from the full-resolution run if export_data.py wrote a "report"; otherwise the sampled minimum
+  const rep = DATA.scenarios[key].report;
+  return { frac: rep ? rep.levels[j].min : web[k][j], year: DATA.years[k] };
+}
+function counts(key) {
+  const h = lowest(key, 1), c = lowest(key, 2);
+  return { h: Math.max(1, Math.round(MAX_H * Math.min(1, h.frac))), c: Math.max(1, Math.round(MAX_C * Math.min(1, c.frac))), hy: h.year, cy: c.year };
+}
+function svgFor(s) {
+  const f = `var(${s.fill})`, w = Math.round(s.h * s.vw / 80);
+  return `<svg viewBox="0 0 ${s.vw} 80" width="${w}" height="${s.h}" role="img" aria-label="${s.name}">` +
+    s.B.map(d => `<path d="${d}" fill="${f}" opacity=".6"/>`).join('') + s.P.map(d => `<path d="${d}" fill="${f}"/>`).join('') +
+    `<circle cx="${s.eye[0]}" cy="${s.eye[1]}" r="1.7" fill="var(--card)"/></svg>`;
+}
+
+// ---------- one animal ----------
+function spawn(sp, x, dir, i) {
+  const s = SPECIES[sp], el = document.createElement('div');
+  el.className = 'beast' + (s.fly ? ' flyer' : ''); el.style.setProperty('--i', i);
+  el.style.left = x + '%';
+  el.innerHTML = `<div class="face" style="transform:scaleX(${dir})">${svgFor(s)}${s.fly ? QUETZ_STAND : ''}</div>`;
+  document.getElementById('field').appendChild(el);
+  return { el, face: el.firstChild, x, dir, sp, t: 0, busy: false, gone: false };
+}
+function face(b, d) { b.dir = d; b.face.style.transform = `scaleX(${d})`; }
+function move(b, nx, secs, cls) {
+  face(b, nx >= b.x ? 1 : -1);
+  b.el.style.transition = `left ${secs}s ${cls === 'running' ? 'ease-out' : 'linear'}, bottom .8s ease-in-out`;
+  b.el.classList.add(cls); b.x = nx; b.el.style.left = nx + '%';
+  return new Promise(r => later(secs * 1000, () => { b.el.classList.remove(cls); r(); }));
+}
+function schedule(b, ms) { clearTimeout(b.t); if (!REDUCED) b.t = later(ms ?? rnd(4000, 10000), () => act(b)); }
+
+function buildHerd(key) {
+  beasts.forEach(b => { clearTimeout(b.t); b.gone = true; });
+  chasing = false;
+  const n = counts(key), field = document.getElementById('field'), plants = lowest(key, 0);
+  scenery(plants.frac); sea(plants.frac, lowest(key, 1).frac);
+  const yr = y => y < 1 ? Math.round(y * 12) + ' mo' : 'yr ' + Math.round(y);
+  document.getElementById('herdinfo').innerHTML = key === 'neither'
+    ? `Full herd: <b>${n.h} herbivores</b>, <b class="c">${n.c} predators</b>, all plants. No impact, nothing lost.`
+    : `At the worst point: <b>plants ${Math.round(plants.frac * 100)}%</b> (${yr(plants.year)}), <b>${n.h} of ${MAX_H} herbivores</b> (${yr(n.hy)}), <b class="c">${n.c} of ${MAX_C} predators</b> (${yr(n.cy)})`;
+  const list = [];
+  for (let i = 0; i < n.h; i++) list.push(HERB[i % HERB.length]);
+  for (let i = 0; i < n.c; i++) list.push(CARN[i % CARN.length]);
+  list.sort(() => Math.random() - .5);
+  field.innerHTML = '';
+  beasts = list.map((sp, i) => {
+    const b = spawn(sp, SPECIES[sp].fly ? rnd(8, 90) : 5 + (i + rnd(.2, .8)) / list.length * (LAND - 6), Math.random() < .5 ? -1 : 1, i);
+    schedule(b, rnd(1500, 6000));
+    return b;
+  });
+}
+
+// ---------- behaviours: graze, stroll, turn, wander off (and a new kind walks on), T. rex chase, Pachy headbutt ----------
+function act(b) {
+  if (b.gone) return;
+  schedule(b);
+  if (b.busy) return;
+  const r = Math.random(), s = SPECIES[b.sp];
+  if (s.fly) {                                     // Quetzalcoatlus glides around overhead
+    if (r < .3 && !hunting && school) return hunt(b);
+    if (r < .38) return leave(b);
+    return void move(b, Math.min(94, Math.max(6, b.x + rnd(-30, 30))), rnd(4, 7), 'gliding');
+  }
+  if (b.sp === 'trex' && r < .2 && !chasing) { const prey = beasts.find(o => SPECIES[o.sp].diet === 'h' && !o.busy && !o.gone); if (prey) return chase(b, prey); }
+  if (b.sp === 'pachy' && r < .3) { const mate = beasts.find(o => o !== b && o.sp === 'pachy' && !o.busy && !o.gone); if (mate) return headbutt(b, mate); }
+  if (r < .08) return leave(b);
+  if (r < .5) { b.el.classList.add('graze'); later(2800, () => b.el.classList.remove('graze')); return; }
+  if (r < .8) {
+    const nx = b.x + b.dir * rnd(3, 9);
+    if (nx < 4 || nx > LAND) return face(b, -b.dir);
+    return void move(b, nx, Math.abs(nx - b.x) * .5, 'walking');
+  }
+  face(b, -b.dir);
+}
+async function leave(b) {
+  b.busy = true;
+  const edge = SPECIES[b.sp].fly && b.x > 50 ? 112 : -12;
+  await move(b, edge, Math.abs(edge - b.x) * .32, SPECIES[b.sp].fly ? 'gliding' : 'walking');
+  if (b.gone) return;
+  b.gone = true; clearTimeout(b.t); b.el.remove();
+  const pool = SPECIES[b.sp].diet === 'h' ? HERB : CARN;      // same food-web level, different kind
+  const others = pool.filter(k => k !== b.sp);
+  const sp = others[Math.floor(Math.random() * others.length)] || b.sp;
+  const from = SPECIES[sp].fly && Math.random() < .5 ? 112 : -12;
+  const nb = spawn(sp, from, from < 0 ? 1 : -1, beasts.length);
+  beasts[beasts.indexOf(b)] = nb;
+  nb.busy = true;
+  later(400, async () => {
+    await move(nb, from < 0 ? rnd(8, SPECIES[sp].fly ? 60 : LAND - 4) : rnd(60, 92), rnd(5, 8), SPECIES[sp].fly ? 'gliding' : 'walking');
+    nb.busy = false; schedule(nb);
+  });
+}
+function chase(rex, prey) {
+  chasing = true; rex.busy = prey.busy = true;
+  const d = prey.x >= rex.x ? 1 : -1;
+  const goal = Math.min(LAND, Math.max(5, prey.x + d * rnd(18, 28)));
+  face(rex, d);
+  later(350, () => move(prey, goal, 1.9, 'running'));
+  later(550, () => move(rex, Math.min(LAND, Math.max(5, goal - d * 9)), 1.9, 'running').then(() => {
+    later(700, () => { rex.busy = prey.busy = false; chasing = false; });
+  }));
+}
+function headbutt(a, b) {
+  a.busy = b.busy = true;
+  const [L, R] = a.x <= b.x ? [a, b] : [b, a];
+  const fw = document.getElementById('field').clientWidth || innerWidth;
+  const half = 31 / fw * 100;                       // about 62 px between centres puts the domes together
+  const mid = Math.min(LAND - 4, Math.max(10, (L.x + R.x) / 2));
+  const secs = Math.max(.8, Math.max(Math.abs(mid - half - L.x), Math.abs(mid + half - R.x)) * .35);
+  [[L, mid - half, 1], [R, mid + half, -1]].forEach(([o, nx, d]) => {
+    move(o, nx, secs, 'walking').then(() => {
+      face(o, d);
+      later(500, () => o.el.classList.add('butt'));
+      later(2900, () => { o.el.classList.remove('butt'); o.busy = false; });
+    });
+  });
+}
+function scatter() {
+  chasing = false; seaPanic();
+  beasts.forEach(b => { clearTimeout(b.t); b.busy = true; b.el.classList.remove('butt', 'graze'); move(b, SPECIES[b.sp].fly ? rnd(5, 93) : rnd(5, LAND), 1.2, 'running'); });
+}
+
+// ---------- asteroid: slow fall onto the herd, light-tan white-out with the scenario name, then fade back ----------
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function impact(name, onHit) {
+  const flash = document.getElementById('flash'), txt = document.getElementById('flash-text');
+  txt.innerHTML = `Simulation controls now showing <b>${name}</b>`;
+  if (REDUCED || !document.body.animate) { onHit(); return; }
+  const tx = innerWidth * rnd(.35, .65), ty = innerHeight - 55;
+  const sx = innerWidth + 120, sy = -140;
+  const ang = Math.atan2(sy - ty, sx - tx) * 180 / Math.PI;     // tail points back along the path
+  const rock = document.createElement('div'); rock.id = 'rock';
+  rock.innerHTML = `<div class="tail" style="transform:rotate(${ang}deg)"></div><div class="stone"></div>`;
+  document.body.appendChild(rock);
+  rock.querySelector('.stone').animate([{ transform: 'rotate(0)' }, { transform: 'rotate(300deg)' }], { duration: 2600 });
+  later(700, scatter); later(1950, scatter);       // the herd spots the fireball and panics while it falls
+  await rock.animate([{ transform: `translate(${sx}px, ${sy}px) scale(.6)` }, { transform: `translate(${tx}px, ${ty}px) scale(1.1)` }],
+    { duration: 2600, easing: 'cubic-bezier(.35,0,.85,.55)', fill: 'forwards' }).finished;
+  await flash.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: 'forwards' }).finished;
+  rock.remove();
+  onHit();
+  await txt.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 450, fill: 'forwards' }).finished;
+  await wait(1500);
+  await flash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1100, easing: 'ease-in', fill: 'forwards' }).finished;
+  txt.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' });
+}
+
+
+// ---------- Quetzalcoatlus standing pose (for wading at the ledge) ----------
+const QUETZ_STAND = `<svg class="stand" viewBox="0 0 116 80" width="87" height="60" aria-hidden="true"><g fill="var(--violet-ink)">
+  <path d="M30 50 Q40 40 56 40 Q64 42 66 50 Q60 58 44 58 Q32 57 30 50Z"/><path d="M58 44 Q66 26 72 12 L77 12 Q72 28 64 48Z"/>
+  <path d="M71 14 Q73 5 80 7 L84 10 L114 42 L80 16 Q75 18 71 14Z"/><path d="M74 8 L63 1 L77 6Z"/><path d="M56 42 L67 50 L60 62 L50 50Z"/>
+  <path d="M60 48 L67 50 L65 76 L60 76Z"/><path d="M37 54 L42 54 L40 76 L35 76Z"/><path d="M46 56 L50 56 L50 76 L46 76Z" opacity=".6"/></g>
+  <circle cx="78" cy="10" r="1.7" fill="var(--card)"/></svg>`;
+const LEDGE_X = 58.4;      // percent of bar width: the rock ledge at the foot of the cliff
+let hunting = false;
+async function hunt(b) {
+  hunting = true; b.busy = true;
+  await move(b, LEDGE_X, Math.max(2.5, Math.abs(LEDGE_X - b.x) * .09), 'gliding');
+  if (b.gone) { hunting = false; return; }
+  face(b, 1); b.el.classList.add('perched');                 // lands and wades at the water's edge
+  if (school && !school.busy) seaGo(school, 5, 10, 2.2);     // the fish school drifts into the shallows
+  await wait(2800);
+  b.el.classList.add('snatch');
+  later(450, eatFish);
+  await wait(1400);
+  b.el.classList.remove('snatch', 'perched');
+  await wait(600);
+  if (!b.gone) await move(b, rnd(8, LAND), rnd(3, 5), 'gliding');
+  b.busy = false; hunting = false;
+}
+
+// ---------- the sea: depth cross-section, plankton (producers), small prey (herbivore level), plesiosaur + Mosasaurus ----------
+const SEA_INK = '#2f4f52';
+const FISH = `<svg viewBox="0 0 24 10" width="18" height="8"><path d="M22 5 Q16 0 8 4 L2 1 L3 5 L2 9 L8 6 Q16 10 22 5Z" fill="#dbe6e1" stroke="${SEA_INK}" stroke-width=".6"/><circle cx="18.5" cy="4.4" r=".9" fill="${SEA_INK}"/></svg>`;
+const AMMONITE = `<svg viewBox="0 0 34 28" width="30" height="25"><circle cx="13" cy="14" r="11" fill="#e1bca7" stroke="#7a5a43" stroke-width="1.2"/>
+  <path d="M13 14 m0 -3 a3 3 0 1 1 -3 3 a6 6 0 0 1 6 -6 a8.5 8.5 0 0 1 8.5 8.5" fill="none" stroke="#7a5a43" stroke-width="1.1"/>
+  <path d="M13 3 L13 6 M21 6 L19 8 M24 14 L21 14 M5 6 L7 8 M2 14 L5 14 M5 22 L7 20 M13 25 L13 22" stroke="#7a5a43" stroke-width=".8"/>
+  <path d="M23 18 Q28 18 33 15 M23 20 Q28 21 33 21 M22 22 Q26 25 31 26" stroke="#94608f" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>`;
+const BELEMNITE = `<svg viewBox="0 0 38 12" width="32" height="10"><path d="M2 6 Q4 2 12 3 L26 4 Q30 6 26 8 L12 9 Q4 10 2 6Z" fill="#c59fc5" stroke="#94608f" stroke-width=".8"/>
+  <path d="M26 5 Q31 3 36 3 M27 6 L37 6 M26 7 Q31 9 36 9" stroke="#94608f" stroke-width="1.1" fill="none" stroke-linecap="round"/><circle cx="24.5" cy="5.4" r=".9" fill="${SEA_INK}"/></svg>`;
+const TURTLE = `<svg viewBox="0 0 30 16" width="24" height="13"><path d="M17 11 l5 4 l-6 -2Z M10 11 l-5 4 l6 -2Z M18 5 l7 -4 l-3 5Z" fill="#4f7a58"/>
+  <ellipse cx="14" cy="8" rx="8" ry="5" fill="#6b7d4a" stroke="#4f5a33" stroke-width=".8"/><path d="M9 8 h10 M14 3.5 v9" stroke="#4f5a33" stroke-width=".6"/>
+  <circle cx="24.5" cy="7" r="2.8" fill="#8a9a63"/><circle cx="25.6" cy="6.4" r=".7" fill="${SEA_INK}"/></svg>`;
+const PLESIO = `<svg viewBox="0 0 140 52" width="100" height="37" aria-label="Plesiosaur">
+  <path d="M70 22 Q80 12 94 9 Q84 18 77 24Z M42 22 Q48 12 60 9 Q54 18 50 24Z" fill="${SEA_INK}" opacity=".55"/>
+  <path d="M36 26 L8 29 L36 32Z" fill="${SEA_INK}"/><ellipse cx="60" cy="28" rx="26" ry="11" fill="${SEA_INK}"/>
+  <path d="M80 24 Q100 14 118 15 L119 20 Q100 21 82 31Z" fill="${SEA_INK}"/><ellipse cx="124" cy="17.5" rx="8.5" ry="4.5" fill="${SEA_INK}"/>
+  <path d="M72 34 Q78 46 93 49 Q83 40 79 33Z M44 34 Q47 46 59 49 Q53 40 50 33Z" fill="${SEA_INK}"/><circle cx="127" cy="16.5" r="1.3" fill="#e6dccf"/></svg>`;
+const MOSA = `<svg viewBox="0 0 160 50" width="116" height="36" aria-label="Mosasaurus">
+  <path d="M84 22 Q92 12 104 10 Q96 18 92 23Z" fill="#3d4a3c" opacity=".55"/>
+  <path d="M20 28 Q50 18 90 20 Q115 21 128 22 L156 25 Q158 28 150 29 L130 30 Q140 33 128 34 Q100 38 70 36 Q40 34 20 28Z" fill="#3d4a3c"/>
+  <path d="M22 27 L5 27 L0 40 Q9 33 15 30Z M12 27 L3 17 L16 26Z" fill="#3d4a3c"/>
+  <path d="M100 34 Q104 44 116 46 Q108 38 106 33Z M60 35 Q62 44 72 46 Q66 38 66 34Z" fill="#3d4a3c"/>
+  <path d="M132 28.5 L155 26.5" stroke="#e6dccf" stroke-width="1" opacity=".7"/><circle cx="135" cy="24" r="1.4" fill="#e6dccf"/></svg>`;
+const MOVERS = {
+  plesio: { svg: () => PLESIO, xr: [20, 82], yr: [30, 74], secs: [6, 10], wait: [1.5, 5], pred: 1 },
+  mosa: { svg: () => MOSA, xr: [20, 82], yr: [25, 70], secs: [6, 10], wait: [1.5, 5], pred: 1 },
+  school: { svg: () => [[0, 0], [14, -6], [16, 6], [30, 0], [6, 10]].map(([x, y]) => `<span class="fish" style="left:${x}px;top:${y}px">${FISH}</span>`).join(''),
+    xr: [10, 85], yr: [12, 60], secs: [4, 7], wait: [1, 4] },
+  ammonite: { svg: () => AMMONITE, xr: [8, 92], yr: [25, 80], secs: [10, 16], wait: [2, 6] },
+  belemnite: { svg: () => BELEMNITE, xr: [8, 92], yr: [20, 75], secs: [1.6, 2.8], wait: [4, 9] },
+  turtle: { svg: () => TURTLE, xr: [8, 92], yr: [4, 14], secs: [7, 11], wait: [2, 5] },
+};
+let seaLife = [], school = null, seaChasing = false;
+function seaSpawn(kind, x, y) {
+  const L = document.getElementById('lake'), el = document.createElement('div');
+  el.className = 'swimmer ' + kind;
+  el.innerHTML = `<div class="face">${MOVERS[kind].svg()}</div>`;
+  el.style.left = x + '%'; el.style.top = y + '%'; L.appendChild(el);
+  const m = { el, face: el.firstChild, x, y, kind, dir: 1, gone: false, busy: false, t: 0 };
+  if (!REDUCED) m.t = later(rnd(500, 3000), () => wander(m));
+  return m;
+}
+function seaGo(m, nx, ny, secs, ease) {
+  m.dir = nx >= m.x ? 1 : -1; m.face.style.transform = `scaleX(${m.dir})`;
+  m.el.style.transition = `left ${secs}s ${ease || 'ease-in-out'}, top ${secs}s ${ease || 'ease-in-out'}`;
+  m.x = nx; m.y = ny; m.el.style.left = nx + '%'; m.el.style.top = ny + '%';
+}
+function frantic(m, nx, ny, secs) {        // fast, wiggly dash
+  m.el.classList.add('frantic'); seaGo(m, nx, ny, secs, 'ease-out');
+  later(secs * 1000, () => m.el.classList.remove('frantic'));
+}
+function wander(m) {
+  if (m.gone) return;
+  const o = MOVERS[m.kind], secs = rnd(...o.secs);
+  m.t = later((secs + rnd(...o.wait)) * 1000, () => wander(m));
+  if (m.busy || (m === school && hunting)) return;
+  if (o.pred && !seaChasing && Math.random() < .3) { const prey = seaLife.find(p => !MOVERS[p.kind].pred && !p.busy && !p.gone); if (prey) return seaChase(m, prey); }
+  seaGo(m, rnd(...o.xr), rnd(...o.yr), secs);
+}
+// plesiosaur or Mosasaurus chases a prey animal, which flees frantically
+function seaChase(pred, prey) {
+  seaChasing = true; pred.busy = prey.busy = true;
+  const d = prey.x >= pred.x ? 1 : -1;
+  const gx = Math.min(94, Math.max(6, prey.x + d * rnd(25, 40))), gy = Math.min(85, Math.max(8, prey.y + rnd(-25, 25)));
+  frantic(prey, gx, gy, 1.6);
+  later(300, () => frantic(pred, Math.min(90, Math.max(10, gx - d * 10)), gy, 1.7));
+  later(2600, () => { pred.busy = prey.busy = false; seaChasing = false; });
+}
+// asteroid on its way: everything in the sea swims frantically
+function seaPanic() {
+  seaLife.forEach(m => { if (m.gone) return; m.busy = true; frantic(m, rnd(8, 92), rnd(10, 80), 1.1); later(1200, () => { m.busy = false; }); });
+}
+function eatFish() {
+  if (!school) return;
+  const fish = school.el.querySelectorAll('.fish');
+  if (fish.length > 1) { fish[fish.length - 1].remove(); return; }
+  const old = school; old.gone = true; clearTimeout(old.t); old.el.remove(); school = null;
+  later(9000, () => { if (seaLife.includes(old)) { school = seaSpawn('school', 90, 30); seaLife[seaLife.indexOf(old)] = school; } });
+}
+function sea(plantFrac, herbFrac) {
+  const L = document.getElementById('lake');
+  const n = Math.round(36 * Math.min(1, plantFrac));        // plankton dots follow the producers level
+  let dots = '';
+  for (let i = 0; i < n; i++) dots += `<i class="plankton" style="left:${rnd(4, 96).toFixed(1)}%;top:${rnd(4, 30).toFixed(1)}%;animation-delay:${(-rnd(0, 6)).toFixed(2)}s"></i>`;
+  L.querySelector('.plankton-layer').innerHTML = dots;
+  seaChasing = false;
+  seaLife.forEach(m => { m.gone = true; clearTimeout(m.t); if (!MOVERS[m.kind].pred) m.el.remove(); });
+  const keep = seaLife.filter(m => MOVERS[m.kind].pred);
+  keep.forEach(m => { m.gone = false; m.busy = false; m.el.classList.remove('frantic'); if (!REDUCED) m.t = later(rnd(500, 2000), () => wander(m)); });
+  const units = Math.max(1, Math.round(6 * Math.min(1, herbFrac)));   // small prey follow the herbivore level
+  const KINDS = ['school', 'ammonite', 'turtle', 'belemnite', 'ammonite', 'turtle'];
+  const prey = KINDS.slice(0, units).map(k => seaSpawn(k, rnd(15, 85), rnd(...MOVERS[k].yr)));
+  school = prey.find(m => m.kind === 'school') || null;
+  seaLife = (keep.length ? keep : [seaSpawn('plesio', 38, 60), seaSpawn('mosa', 70, 40)]).concat(prey);
+}
+
+// ---------- Edmontosaurus skeleton in a death pose (head and neck arched back), drawn for the reset screen ----------
+function fossilSVG() {
+  const K = [[318, 74], [262, 70], [214, 98], [204, 150], [236, 196], [300, 214], [380, 212], [455, 204], [530, 214], [610, 236], [690, 256], [770, 268]];
+  const cr = (p0, p1, p2, p3, t) => { const t2 = t * t, t3 = t2 * t;
+    return [0, 1].map(k => .5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3)); };
+  const dense = [];
+  for (let i = 0; i < K.length - 1; i++) for (let t = 0; t < 1; t += .02)
+    dense.push(cr(K[Math.max(0, i - 1)], K[i], K[i + 1], K[Math.min(K.length - 1, i + 2)], t));
+  dense.push(K[K.length - 1]);
+  const pts = [dense[0]]; let acc = 0;                       // resample every ~13 px along the backbone
+  for (let i = 1; i < dense.length; i++) { acc += Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]); if (acc >= 13) { pts.push(dense[i]); acc = 0; } }
+  const N = pts.length, ink = 'var(--ink)', bone = '#e9dccb', out = [];
+  const tan = i => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(N - 1, i + 1)], d = Math.hypot(b[0] - a[0], b[1] - a[1]); return [(b[0] - a[0]) / d, (b[1] - a[1]) / d]; };
+  const near = (x) => { let k = 0; pts.forEach((p, i) => { if (Math.abs(p[0] - x) < Math.abs(pts[k][0] - x) && i > 8) k = i; }); return k; };
+  const iSh = near(300), iHip = near(455);
+  const F = v => v.toFixed(1);
+  // ribs (belly side, sweeping back)
+  for (let i = iSh; i < iHip - 1; i++) {
+    const [x, y] = pts[i], [tx, ty] = tan(i), nx = ty, ny = -tx, f = Math.sin(Math.PI * (i - iSh + 1) / (iHip - iSh + 1)), L = 30 + 62 * f;
+    out.push(`<path d="M${F(x)} ${F(y)} Q${F(x - nx * L * .55 + tx * 6)} ${F(y - ny * L * .55 + ty * 6)} ${F(x - nx * L + tx * 22)} ${F(y - ny * L + ty * 22)}" stroke="${ink}" stroke-width="3.2" fill="none" stroke-linecap="round"/>`);
+  }
+  // scapula + front leg
+  out.push(`<path d="M262 196 Q300 186 336 200 L332 210 Q300 204 268 214Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>`);
+  out.push(`<path d="M282 214 L292 266 M292 266 L270 304 M292 266 L276 306 M272 304 l-10 10 M272 304 l-2 13 M272 304 l6 12" stroke="${ink}" stroke-width="4" fill="none" stroke-linecap="round"/>`);
+  // pelvis: ilium blade, forward pubis paddle, long ischium
+  out.push(`<path d="M410 196 Q455 182 500 196 Q470 210 418 208Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>`);
+  out.push(`<path d="M440 212 L408 232 Q394 242 384 236 Q392 226 430 208Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>`);
+  out.push(`<path d="M462 212 L520 262 L514 266 L454 218Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>`);
+  // hind legs (far leg fainter)
+  const leg = (dx, dy, op) => out.push(`<g opacity="${op}" transform="translate(${dx} ${dy})"><path d="M452 214 L430 296 M430 296 L478 352 M478 352 L508 370" stroke="${ink}" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M508 370 l20 -4 M508 370 l22 4 M508 370 l16 12" stroke="${ink}" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="452" cy="214" r="7" fill="${bone}" stroke="${ink}" stroke-width="2"/></g>`);
+  leg(26, 6, .45); leg(0, 0, 1);
+  // ossified tendons: the criss-cross lattice along a hadrosaur's back
+  const iT0 = near(380), iT1 = near(610);
+  for (let i = iT0; i < iT1; i += 2) {
+    const [x, y] = pts[i], [tx, ty] = tan(i), nx = ty, ny = -tx;
+    out.push(`<path d="M${F(x + nx * 8 - tx * 14)} ${F(y + ny * 8 - ty * 14)} L${F(x + nx * 30 + tx * 14)} ${F(y + ny * 30 + ty * 14)} M${F(x + nx * 30 - tx * 14)} ${F(y + ny * 30 - ty * 14)} L${F(x + nx * 8 + tx * 14)} ${F(y + ny * 8 + ty * 14)}" stroke="${ink}" stroke-width="1" opacity=".55"/>`);
+  }
+  // vertebrae with neural spines (up) and tail chevrons (down)
+  pts.forEach(([x, y], i) => {
+    const [tx, ty] = tan(i), nx = ty, ny = -tx, ang = Math.atan2(ty, tx) * 180 / Math.PI;
+    const tail = i > iHip, neck = i < iSh, u = tail ? 1 - (i - iHip) / (N - iHip) : 1;
+    const sz = neck ? 5.5 : tail ? 3 + 4 * u : 7;
+    const sp = neck ? 7 : tail ? 6 + 26 * u * u : 30;
+    out.push(`<path d="M${F(x)} ${F(y)} L${F(x + nx * sp)} ${F(y + ny * sp)}" stroke="${ink}" stroke-width="${tail ? 2.4 : 3}" stroke-linecap="round"/>`);
+    if (tail && u > .12) out.push(`<path d="M${F(x)} ${F(y)} L${F(x - nx * (sp * .8) + tx * 4)} ${F(y - ny * (sp * .8) + ty * 4)}" stroke="${ink}" stroke-width="2" stroke-linecap="round"/>`);
+    out.push(`<rect x="${F(x - sz)}" y="${F(y - sz * .75)}" width="${F(sz * 2)}" height="${F(sz * 1.5)}" rx="${F(sz * .5)}" fill="${bone}" stroke="${ink}" stroke-width="1.6" transform="rotate(${F(ang)} ${F(x)} ${F(y)})"/>`);
+  });
+  // duck-billed skull, pointing away from the arched neck
+  const [hx, hy] = pts[0], [ux, uy] = tan(0), ha = Math.atan2(-uy, -ux) * 180 / Math.PI;
+  out.push(`<g transform="translate(${F(hx)} ${F(hy)}) rotate(${F(ha)}) scale(1.25)">
+    <path d="M-6 -10 Q14 -20 40 -17 L76 -12 Q96 -10 104 -4 Q108 2 102 6 L74 6 Q50 10 30 14 Q8 16 -4 8Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>
+    <path d="M-2 10 Q30 18 70 9 L72 13 Q34 24 0 16Z" fill="${bone}" stroke="${ink}" stroke-width="2"/>
+    <circle cx="14" cy="-6" r="6" fill="none" stroke="${ink}" stroke-width="2"/>
+    <ellipse cx="66" cy="-6" rx="16" ry="4" fill="none" stroke="${ink}" stroke-width="1.6"/>
+    <path d="M24 9 L56 6" stroke="${ink}" stroke-width="1" stroke-dasharray="2 2"/></g>`);
+  return `<svg class="fossil" viewBox="150 30 650 360" aria-hidden="true">${out.join('')}</svg>`;
+}
+(function () {
+  const flash = document.getElementById('flash');
+  flash.insertAdjacentHTML('afterbegin', fossilSVG());
+  flash.insertAdjacentHTML('beforeend', '<small class="fossil-cap">Edmontosaurus skeleton in a death pose</small>');
+})();
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = { ink: css('--ink'), card: css('--card'), line: css('--line'), brown: css('--brown'),
+  green: css('--green-ink'), violet: css('--violet-ink'), pink: css('--pink-ink'), yellow: css('--yellow-ink'),
+  greenF: css('--green'), yellowF: css('--yellow') };
+const NAMES = { both: 'Soot + sulfate', soot: 'Soot only (Bardeen-like)', sulfate: 'Sulfate only (Brugger-like)', neither: 'Neither (control)' };
+let X, YRS, HOVER_T;  // set once data.json has loaded
+const when = y => y < 1 ? (Math.round(y * 12) === 0 ? 'impact' : 'month ' + Math.round(y * 12)) : 'year ' + Math.round(y);
+const TICKS = { tickvals: [0, 0.5, 1, 2, 1 + Math.log10(20), 1 + Math.log10(60)], ticktext: ['0', '6 mo', '1 yr', '10', '20', '60 yr'] };
+
+function layout(extra) {
+  return Object.assign({
+    margin: { l: 46, r: 10, t: 8, b: 30 }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: 'Times New Roman, Times, serif', size: 13, color: C.ink },
+    xaxis: Object.assign({ range: [0, 2.79], gridcolor: C.line, zeroline: false, linecolor: C.ink, tickmode: 'array' }, TICKS),
+    yaxis: { gridcolor: C.line, zeroline: false, linecolor: C.ink },
+    showlegend: false, hovermode: 'x unified',
+    hoverlabel: { bgcolor: C.card, bordercolor: C.ink, font: { family: 'Times New Roman, Times, serif', color: C.ink } },
+  }, extra);
+}
+function line(y, color, name, fmt, opts) {
+  return Object.assign({ x: X, y, customdata: HOVER_T, mode: 'lines', name, line: { color, width: 2.6, shape: 'spline', smoothing: 0.4 },
+    hovertemplate: `%{customdata}: <b>%{y:${fmt}}</b><extra>${name}</extra>` }, opts || {});
+}
+function control(y, fmt) {
+  return { x: X, y, mode: 'lines', name: 'no impact', line: { color: C.ink, width: 1.2, dash: 'dash' }, opacity: 0.45, hoverinfo: 'skip' };
+}
+const pct = a => a.map(v => v * 100);
+const cel = a => a.map(v => v - 273.15);
+const CFG = { responsive: true, displayModeBar: false };
+
+function draw(key) {
+  const s = DATA.scenarios[key], n = DATA.scenarios.neither;
+  const ctl = key !== 'neither';
+  Plotly.react('p-trans', [ctl && control(pct(n.trans)),
+    line(pct(s.trans), C.yellow, 'Sunlight', '.1f', { fill: 'tozeroy', fillcolor: 'rgba(217,181,74,.25)', hovertemplate: '%{customdata}: <b>%{y:.1f}%</b><extra>sunlight</extra>' })].filter(Boolean),
+    layout({ yaxis: { range: [0, 105], gridcolor: C.line, zeroline: false, ticksuffix: '%' } }), CFG);
+  Plotly.react('p-Ts', [ctl && control(cel(n.Ts)),
+    line(cel(s.Ts), C.brown, 'Surface', '.1f', { hovertemplate: '%{customdata}: <b>%{y:.1f} °C</b><extra>surface</extra>' })].filter(Boolean),
+    layout({ yaxis: { range: [-22, 20], gridcolor: C.line, zeroline: false, ticksuffix: '°' },
+      shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: C.violet, width: 1, dash: 'dot' } }],
+      annotations: [{ xref: 'paper', x: 1, y: 0, yanchor: 'bottom', xanchor: 'right', text: 'freezing', showarrow: false, font: { size: 12, color: C.violet } }] }), CFG);
+  Plotly.react('p-prod', [ctl && control(pct(n.prod)),
+    line(pct(s.prod), C.green, 'Photosynthesis', '.1f', { fill: 'tozeroy', fillcolor: 'rgba(143,177,149,.3)', hovertemplate: '%{customdata}: <b>%{y:.1f}%</b><extra>photosynthesis</extra>' })].filter(Boolean),
+    layout({ yaxis: { range: [0, 105], gridcolor: C.line, zeroline: false, ticksuffix: '%' } }), CFG);
+  const lv = [['producers', C.green], ['herbivores', C.violet], ['predators', C.pink]];
+  Plotly.react('p-web', lv.map(([nm, col], j) => line(s.web.map(r => r[j] * 100), col, nm, '.1f',
+      { hovertemplate: `<b>%{y:.1f}%</b><extra>${nm}</extra>` })),
+    layout({ showlegend: true, legend: { orientation: 'h', x: 0, y: -0.2, font: { size: 12 } }, margin: { l: 46, r: 10, t: 8, b: 52 },
+      yaxis: { type: 'log', range: [-0.15, 2.08], gridcolor: C.line, zeroline: false, tickvals: [1, 10, 100], ticktext: ['1%', '10%', '100%'] } }), CFG);
+  report(key);
+}
+
+function pad(s, w) { s = String(s); return ' '.repeat(Math.max(0, w - s.length)) + s; }
+function report(key) {
+  const r = DATA.scenarios[key].report, L = ['producers ', 'herbivores', 'predators '];
+  let o = `<span class="h">${NAMES[key]}</span>\n`;
+  if (!r) {
+    // data.json has no "report" yet (export_data.py will add it later)
+    o += `\n<span class="dim">  Summary numbers coming soon.\n  Hover over the graphs for values.</span>\n`;
+    if (key === 'neither') o += `\n<span class="dim">  No aerosols: temperature stays at\n  T0 = 288 K. Check passes.</span>`;
+    document.getElementById('term').innerHTML = o;
+    return;
+  }
+  o += `  peak cooling:          <span class="k">${pad(r.peak_cooling.toFixed(1), 5)} K</span>\n`;
+  o += `  years below freezing:  <span class="k">${pad(r.yrs_freezing.toFixed(1), 5)}</span>\n`;
+  o += `  years photosynth <10%: <span class="k">${pad(r.yrs_dark.toFixed(1), 5)}</span>\n\n`;
+  r.levels.forEach((l, j) => {
+    o += `  ${L[j]} min <span class="k">${(l.min * 100).toFixed(1)}%</span>\n`;
+    o += l.below10 == null ? `    <span class="dim">never below 10%</span>\n` : `    below 10% at year <span class="k">${l.below10.toFixed(2)}</span>\n`;
+    o += l.min >= 0.75 ? `    <span class="dim">never needed to recover</span>\n` : `    back to 75% at year <span class="k">${l.recover.toFixed(1)}</span>\n`;
+  });
+  if (key === 'neither') o += `\n<span class="dim">  No aerosols: temperature stays at\n  T0 = 288 K. Check passes.</span>`;
+  document.getElementById('term').innerHTML = o;
+}
+
+const soot = document.getElementById('soot'), sulf = document.getElementById('sulf'), btn = document.getElementById('run');
+const pick = () => soot.checked && sulf.checked ? 'both' : soot.checked ? 'soot' : sulf.checked ? 'sulfate' : 'neither';
+let shown = 'both';
+const mark = () => btn.classList.toggle('stale', pick() !== shown);
+soot.addEventListener('change', mark); sulf.addEventListener('change', mark);
+btn.addEventListener('click', () => {
+  shown = pick(); btn.classList.remove('stale'); btn.disabled = true;
+  const key = shown;
+  impact(NAMES[key], () => { document.getElementById('showing').textContent = NAMES[key]; draw(key); buildHerd(key); })
+    .finally(() => { btn.disabled = false; });
+});
+
+// Load the model output written by export_data.py, then draw the first scenario.
+btn.disabled = true;
+fetch('data.json')
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(d => {
+    DATA = d; X = DATA.x; YRS = DATA.years; HOVER_T = YRS.map(when);
+    buildHerd('both');
+    if (window.Plotly) { draw('both'); }
+    else { document.getElementById('term').textContent = 'The graph library did not load. Check your internet connection and reload.'; }
+    btn.disabled = false;
+  })
+  .catch(() => {
+    document.getElementById('term').textContent = 'Could not load data.json. If you opened this file by double-clicking, run "python -m http.server" in this folder and open http://localhost:8000 instead.';
+  });
+</script>
