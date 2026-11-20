@@ -86,6 +86,8 @@ aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-heig
 .fern::after { content: ""; position: absolute; left: 0; right: 0; bottom: -40px; height: 44px; background: var(--green-ink); border-radius: 50% 50% 0 0 / 8px 8px 0 0; }
 .beast { position: absolute; bottom: 0; transform: translateX(-50%); transition: left 3s linear; }
 .beast.flyer { bottom: 52px; }
+/* Pachycephalosaurus is short, so it always stands in front of the bigger animals (still behind the ferns) */
+.beast.sp-pachy { z-index: 1; }
 .face { transition: transform .45s ease-in-out; transform-origin: 50% 100%; }
 .beast svg { display: block; overflow: visible; transform-origin: 30% 100%; animation: breathe 3.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.41s); }
 .beast.flyer svg { transform-origin: 50% 50%; animation: soar 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.5s); }
@@ -172,7 +174,7 @@ aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-heig
 
 <div class="wrap">
   <header>
-    <h1>K-Pg Impact Winter<span class="preview-tag">Preview</span></h1>
+    <h1>K-Pg Impact Winter</h1>
     <p>How much did the asteroid impact 66 million years ago disrupt climate and life? <span class="chain">Haze &rarr; sunlight &rarr; temperature &rarr; photosynthesis &rarr; food web.</span></p>
   </header>
 
@@ -200,9 +202,9 @@ aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-heig
         <p>The time axis stretches the first year (monthly steps), then counts years on a log scale out to 60. Hover for exact values.</p>
         <p>The dashed gray line is the no-impact control. It stays flat at 15 &deg;C (288 K), which checks that the model is balanced before the impact.</p>
         <h3>The animals</h3>
-        <p>The animals at the bottom are a drawing of the model's herbivore and predator levels. The herd size follows each level's lowest point: a full herd is 8 herbivores and 6 predators (assumed sizes), times the lowest biomass fraction, with at least 1 survivor. The ferns, trees and the green plankton dots in the sea follow the producers level the same way. The small sea animals (fish, ammonites, belemnites, baby turtles) follow the herbivore level: at its lowest point, missing trees stand dead and missing ferns leave bare ground. When one animal wanders off, another kind from the same level walks on, so the count stays the same. All five kinds lived at the impact. <i>Quetzalcoatlus</i> is a flying pterosaur and the plesiosaur and <i>Mosasaurus</i> are marine reptiles. None of these three is a dinosaur.</p>
+        <p>The animals at the bottom are a drawing of the model's herbivore and predator levels. The herd size follows each level's lowest point: a full herd is 8 herbivores and 6 predators (assumed sizes), times the lowest biomass fraction, with at least 1 survivor. The ferns, trees and the green plankton dots in the sea follow the producers level the same way: at its lowest point, missing trees stand dead and missing ferns leave bare ground. The small sea animals (fish, ammonites, belemnites, baby turtles) follow the herbivore level, and the plesiosaur and <i>Mosasaurus</i> follow the predator level (both at full strength, at least 1 survivor). When one animal wanders off, another kind from the same level walks on, so the count stays the same. All five kinds lived at the impact. <i>Quetzalcoatlus</i> is a flying pterosaur and the plesiosaur and <i>Mosasaurus</i> are marine reptiles. None of these three is a dinosaur.</p>
         <p>This is a simple global-mean model. Its three food-web levels are generic groups, not counts of any species.</p>
-        <p><span class="dim">Preview built from <code>run()</code> with the default scenario (soot &tau; = 8.0, lasting 1.5 yr; sulfate &tau; = 2.0, lasting 3.0 yr). The real site will read <code>data.json</code>.</span></p>
+        <p><span class="dim">Graphs show output of <code>run()</code> (exported by <code>export_data.py</code> to <code>data.json</code>) with soot &tau; = 8.0, lasting 1.5 yr, and sulfate &tau; = 2.0, lasting 3.0 yr.</span></p>
       </div>
     </aside>
   </div>
@@ -328,7 +330,7 @@ function svgFor(s) {
 // ---------- one animal ----------
 function spawn(sp, x, dir, i) {
   const s = SPECIES[sp], el = document.createElement('div');
-  el.className = 'beast' + (s.fly ? ' flyer' : ''); el.style.setProperty('--i', i);
+  el.className = 'beast sp-' + sp + (s.fly ? ' flyer' : ''); el.style.setProperty('--i', i);
   el.style.left = x + '%';
   el.innerHTML = `<div class="face" style="transform:scaleX(${dir})">${svgFor(s)}${s.fly ? QUETZ_STAND : ''}</div>`;
   document.getElementById('field').appendChild(el);
@@ -347,7 +349,7 @@ function buildHerd(key) {
   beasts.forEach(b => { clearTimeout(b.t); b.gone = true; });
   chasing = false;
   const n = counts(key), field = document.getElementById('field'), plants = lowest(key, 0);
-  scenery(plants.frac); sea(plants.frac, lowest(key, 1).frac);
+  scenery(plants.frac); sea(plants.frac, lowest(key, 1).frac, lowest(key, 2).frac);
   const yr = y => y < 1 ? Math.round(y * 12) + ' mo' : 'yr ' + Math.round(y);
   document.getElementById('herdinfo').innerHTML = key === 'neither'
     ? `Full herd: <b>${n.h} herbivores</b>, <b class="c">${n.c} predators</b>, all plants. No impact, nothing lost.`
@@ -563,21 +565,23 @@ function eatFish() {
   const old = school; old.gone = true; clearTimeout(old.t); old.el.remove(); school = null;
   later(9000, () => { if (seaLife.includes(old)) { school = seaSpawn('school', 90, 30); seaLife[seaLife.indexOf(old)] = school; } });
 }
-function sea(plantFrac, herbFrac) {
+function sea(plantFrac, herbFrac, predFrac) {
   const L = document.getElementById('lake');
   const n = Math.round(36 * Math.min(1, plantFrac));        // plankton dots follow the producers level
   let dots = '';
   for (let i = 0; i < n; i++) dots += `<i class="plankton" style="left:${rnd(4, 96).toFixed(1)}%;top:${rnd(4, 30).toFixed(1)}%;animation-delay:${(-rnd(0, 6)).toFixed(2)}s"></i>`;
   L.querySelector('.plankton-layer').innerHTML = dots;
   seaChasing = false;
-  seaLife.forEach(m => { m.gone = true; clearTimeout(m.t); if (!MOVERS[m.kind].pred) m.el.remove(); });
-  const keep = seaLife.filter(m => MOVERS[m.kind].pred);
-  keep.forEach(m => { m.gone = false; m.busy = false; m.el.classList.remove('frantic'); if (!REDUCED) m.t = later(rnd(500, 2000), () => wander(m)); });
+  seaLife.forEach(m => { m.gone = true; clearTimeout(m.t); m.el.remove(); });
+  // sea predators follow the predator level, same rule as on land: full = 2 (assumed), x lowest fraction, at least 1
+  const nPred = Math.max(1, Math.round(2 * Math.min(1, predFrac)));
+  const PREDS = [['plesio', 38, 60], ['mosa', 70, 40]].sort(() => Math.random() - .5).slice(0, nPred);
+  const keep = PREDS.map(([k, x, y]) => seaSpawn(k, x, y));
   const units = Math.max(1, Math.round(6 * Math.min(1, herbFrac)));   // small prey follow the herbivore level
   const KINDS = ['school', 'ammonite', 'turtle', 'belemnite', 'ammonite', 'turtle'];
   const prey = KINDS.slice(0, units).map(k => seaSpawn(k, rnd(15, 85), rnd(...MOVERS[k].yr)));
   school = prey.find(m => m.kind === 'school') || null;
-  seaLife = (keep.length ? keep : [seaSpawn('plesio', 38, 60), seaSpawn('mosa', 70, 40)]).concat(prey);
+  seaLife = keep.concat(prey);
 }
 
 // ---------- Edmontosaurus skeleton in a death pose (head and neck arched back), drawn for the reset screen ----------
